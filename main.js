@@ -8,7 +8,34 @@ const domain = 'ai.fieldsconsult.cn';
 const imageSaveDir = './images/';
 const port = 11000;
 const uploadUrl = 'http://backend.fieldsinvest.com/api/collect/file/uploadFile';
+const loginUrl =  'http://106.14.122.214:8081/login'
 const dataSourceId = 78;
+let token = null
+
+async function getToken(){
+    try {
+        let result = await new Promise(resolve=>{
+            let formData = {
+				username:'wjs',
+				password:'wjs123'
+            }
+
+            request.post({url:loginUrl, json: formData}, function optionalCallback(err, httpResponse, body) {
+                if (err) {
+                    throw Error(err)
+                }
+                console.log('login Success', body);
+                resolve(body.data.token)
+            });
+        })
+        return result
+    }catch (e) {
+        console.log('login error')
+        console.log(e)
+        console.log(e.stack)
+        return null
+    }
+}
 
 async function uploadImg(id){
     try {
@@ -18,7 +45,7 @@ async function uploadImg(id){
                 multipartFile:fs.createReadStream(imageSaveDir+id+'.jpg')
             }
             let headers= {
-                token:'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnY2giLCJleHAiOjE2MTI3NDU1MzYsImlhdCI6MTYxMjE0MDczNiwidXNlcklkIjoxMDAzNn0.PNkYTwJiqrpUyZKxOeVKlw-Gkk3BELteRicMOQPZDyE'
+                token:token
             }
             request.post({url:uploadUrl, formData: formData,headers:headers}, function optionalCallback(err, httpResponse, body) {
                 if (err) {
@@ -38,7 +65,9 @@ async function uploadImg(id){
 }
 
 (async () => {
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+	token = await getToken();
+	let timeout = setTimeout(async function myfunc(){console.log('token updated');token = await getToken();clearTimeout(timeout); timeout = setTimeout(myfunc,1000*60*60*24)},1000*60*60*24)
     app.get('/getScreenShot', function(req, res){
         if(req.query.id){
             getModulePage(req.query.id).then(value => {
@@ -55,7 +84,7 @@ async function uploadImg(id){
             const page = await browser.newPage();
             await page.setCookie({
                 name:'UserToken',
-                value:'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnY2giLCJleHAiOjE2MTI3NDU1MzYsImlhdCI6MTYxMjE0MDczNiwidXNlcklkIjoxMDAzNn0.PNkYTwJiqrpUyZKxOeVKlw-Gkk3BELteRicMOQPZDyE',
+                value:token,
                 domain:domain,
                 path:'/'
             })
