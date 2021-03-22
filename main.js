@@ -48,11 +48,17 @@ async function uploadImg(id){
                 token:token
             }
             request.post({url:uploadUrl, formData: formData,headers:headers}, function optionalCallback(err, httpResponse, body) {
-                if (err) {
-                    throw Error(err)
+                try {
+                    if (err) throw Error(err)
+                    console.log('Upload successful!  Server responded with:', body);
+                        resolve(JSON.parse(body).data.processFileMap.url)
+                }catch (e) {
+                    console.log('upload error')
+                    console.log(e)
+                    console.log(e.stack)
+                    return null
                 }
-                console.log('Upload successful!  Server responded with:', body);
-                resolve(JSON.parse(body).data.processFileMap.fileLoc)
+
             });
         })
         return fileLoc
@@ -64,15 +70,20 @@ async function uploadImg(id){
     }
 }
 
+function genMobileUrl(url, name){
+    let shortenUrl = url.split('http://file.fieldsconsult.cn/group1/')[1]
+    return `${baseUrl}/#/mobilePage?title=${name}&image=${shortenUrl}`
+}
+
 (async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
 	token = await getToken();
 	let timeout = setTimeout(async function myfunc(){console.log('token updated');token = await getToken();clearTimeout(timeout); timeout = setTimeout(myfunc,1000*60*60*24)},1000*60*60*24)
     app.get('/getScreenShot', function(req, res){
-        if(req.query.id){
+        if(req.query.id && req.query.name){
             getModulePage(req.query.id).then(value => {
                 if(value){
-                    res.status(200).send(value)
+                    res.status(200).send(genMobileUrl(value, req.query.name))
                 }else {
                     res.status(500).send('error')
                 }
@@ -94,7 +105,7 @@ async function uploadImg(id){
                 domain:domain,
                 path:'/'
             })
-            await page.setViewport({width: 1200, height: 900});
+            await page.setViewport({width: 700, height: 400, deviceScaleFactor: 3});
             console.log('loading '+baseUrl+'/#/singleModulePage/'+id);
             await page.goto(baseUrl+'/#/singleModulePage/'+id);
             await page.waitForSelector('.loaded',{timeout:7000})
@@ -104,7 +115,7 @@ async function uploadImg(id){
                     resolve()
                 },1000)
             },)
-            await page.screenshot({path: imageSaveDir +id+ '.jpg'});
+            await page.screenshot({path: imageSaveDir +id+ '.jpg',fullPage:true});
             await page.close()
             console.log('image generate done '+baseUrl+'/#/singleModulePage/'+id)
             let fileLoc = await uploadImg(id)
@@ -117,3 +128,4 @@ async function uploadImg(id){
     }
     app.listen(port);
 })();
+
